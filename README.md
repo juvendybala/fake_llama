@@ -1,6 +1,6 @@
 # fake_llama
 ## Introduction
-这个仓库主要记录了南京大学计算机学院智能应用开发的课程项目，该课程的授课老师是[徐经纬](https://ics.nju.edu.cn/people/jingweixu/)教授。这个项目实现了一个在结构和功能上基本与`llama 3`等价的大语言模型，涉及到较多大语言模型相关的论文和技术，也涉及到较多大语言模型的具体实现细节，这个仓库希望能够给有志于从事大语言模型的同学一个参考和启发。该项目对应的课程为[智能应用开发](https://njudeepengine.github.io/llm-course-lecture)，对应的作业地址为[open-llm-assignments](https://github.com/NJUDeepEngine/open-llm-assignments)，你也可以将这个仓库看做一个课程作业的参考。如果你对于这门课程感兴趣，可以关注教师的b站账号，UID为`390606417`，2024年秋季的线上课程录像可以在[这里](https://space.bilibili.com/390606417/channel/collectiondetail?sid=3771310)获得。
+这个仓库主要记录了南京大学计算机学院本科生课程智能应用开发的课程项目，该课程的授课老师是[徐经纬](https://ics.nju.edu.cn/people/jingweixu/)教授。这个项目实现了一个在结构和功能上基本与`llama 3`等价的大语言模型，涉及到较多大语言模型相关的论文和技术，也涉及到较多大语言模型的具体实现细节，这个仓库希望能够给有志于从事大语言模型的同学一个参考和启发。该项目对应的课程为[智能应用开发](https://njudeepengine.github.io/llm-course-lecture)，对应的作业地址为[open-llm-assignments](https://github.com/NJUDeepEngine/open-llm-assignments)，你也可以将这个仓库看做一个课程作业的参考。如果你对于这门课程感兴趣，可以关注教师的b站账号，UID为`390606417`，2024年秋季的线上课程录像可以在[这里](https://space.bilibili.com/390606417/channel/collectiondetail?sid=3771310)获得。
 
 ## Environment
 * 你需要提前安装好 python 3.10+的环境
@@ -39,3 +39,27 @@
  在这个文件中实现了一个最基本的`llama`模型，他支持模型参数的导入和模型配置的导入，可以在训练和推理两个不同任务情况下进行前向传播，进行正确的`kv_cache`管理，涉及到的论文有[Llama3 Paper](https://arxiv.org/pdf/2407.21783)，具体的实现细节可见[这里](./tasks/task5-1.md)
 
 ### `./src/modeling/norm.py`
+在这个文件中实现了`RMSNorm`的变种`GroupRMSNorm`类，可对输入进行分组`normalization`，涉及到的论文有[RMSNorm Paper](https://arxiv.org/abs/1910.07467)，具体的实现细节可见[这里](./tasks/task1-1.md)
+
+### `./src/modeling/vocab_emb.py`
+在这个文件中实现了一个`ParallelVocabEmbedding`类，它模拟了分布式情况下的`vocab_embedding`操作，主要功能是将离散的`token`转化为连续的`embedding`，涉及到的资料有[Megatron Vovab Parallel Embedding Module](https://github.com/NVIDIA/Megatron-LM/blob/main/megatron/core/tensor_parallel/layers.py#L156)，具体的实现细节可见[这里](./tasks/task1-2.md)
+
+### `./src/modeling/pos_emb.py` and `./src/functional.py`
+这两个文件共同实现了一个大语言模型中的重要模块：位置编码模块，当前普遍使用的位置编码类型为[RoPE](https://arxiv.org/abs/2104.09864)，即旋转位置编码，其功能是为序列的`embedding`加上位置信息。该项目实现了`Rope`的一个变种，[NTK-aware RoPE](https://arxiv.org/abs/2309.00071)，用于解决训练环境下和推理环境下文本长度不一致的问题，相关论文有[Alibi](https://arxiv.org/abs/2108.12409)和[PI](https://arxiv.org/abs/2306.15595)，具体的实现细节可见[这里](./tasks/task1-3.md)
+
+### `./src/modeling/mlp.py`
+在这个文件中实现了大语言模型中的`mlp`层，其主要功能是通过非线性变换提取高阶特征，生成更有利于下一层处理的特征表示。文件中主要实现了两个类，分别为`DenseMLPWithLoRA`和`SparseMLPWithLoRA`，前者实现了一个`mlp`模块，其中保存`lora`参数用于后续的训练，`lora`有关的论文见[这里]((https://arxiv.org/abs/2106.09685))，同时该模块支持多种非线性激活函数，相关论文有[GLU Paper](https://arxiv.org/abs/1612.08083)和[GLU Variants Paper](https://arxiv.org/abs/2002.05202)，具体的实现细节见[这里](./tasks/task2-1.md)；后者在前者的基础上实现了一个`MOE`风格的稀疏`MLP`层，同时它也模拟了分布式情况下`mlp`的操作，相关论文有[MoE Paper](https://arxiv.org/abs/1701.06538)和[Mixtral Paper](https://arxiv.org/abs/2401.04088)，该文件具体的实现细节见[这里](./tasks/task2-2.md)
+
+### `./src/modeling/attention.py`
+在这个文件中实现了大语言模型的`attention`层，有关`attention`层的结构和功能可见论文[Transformer paper](https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf)。这个文件实现了两个类，分别为`OfflineSlidingWindowAttn`和`OnlineSlidingWindowAttn`，前者实现了一个经典的`attention layer`，支持不同的`QKV pack format`，`QKV Layout`和`Window`模式，同时支持不同的多头注意力机制，包括`MHA`,`MQA`,`GQA`，相关论文有[Google MQA paper](https://arxiv.org/pdf/1911.02150)和[Google GQA paper](https://arxiv.org/pdf/2305.13245)，具体实现细节见[这里](./tasks/task3-1.md)；后者实现了一个支持`online softmax`的`attention layer`，`online softmax`是一个在`attention layer`层面非常重要的优化，可以减少`IO`操作和提供分布式的扩展，详情见[Online Softmax Paper](https://arxiv.org/pdf/2112.05682)，它也为`flash attention`提供了分块计算的基础，相关论文见[Flash Attention 2 Paper](https://arxiv.org/pdf/2307.08691.pdf)，该文件具体实现细节见[这里](./tasks/task3-2.md)
+
+### `./src/modeling/transformer.py`
+在这个文件中实现了大语言模型的`kv cache`，`transformer layer`和`transformer block`，第一个模块在大语言模型的推理中起到了很重要的作用，它可以在`decoding`阶段加速推理的速度，是一种以空间换时间的策略，具体实现细节见[这里](./tasks/task4-1.md)；第二个模块和第三个模块组成最终的大语言模型，是对上述实现的模块的拼接，具体实现细节见[这里](./tasks/task4-2.md)和[这里](./tasks/task4-3.md)
+
+### `./src/modeling/prompt.py`
+这个文件中实现了大语言模型中推理过程中的`prompt`类，它可用于大语言模型推理前给出对于模型生成的指示，具体实现细节见[这里](./tasks/task5-2.md)
+
+## Learnings
+* 如果你是一个从未接触过深度学习领域的初学者，这个项目可能可以让你对于`pytorch`的基本语法有一个了解，你可以学习到许多`pytorch`的语法糖以及如何对张量进行操作，进而提升代码能力
+* 如果你是一个有志于从事大语言模型研究的研究者，这个项目能让你对于大语言模型有一个比较基本的认知，能够知道一个`llama`模型的每个部件都是在做些什么，以及一些具体的代码实现细节，能够让你知道大语言模型可能的科研方向和相关工作，是一个不错的初上手项目
+* 如果你是一个从事于ai领域其他方向的研究者，这个项目实现的内容可能和你的研究方向并不直接相关，你可能往往将它当做一个黑盒来使用，但了解其内部的构造和运行过程可以让你更好地使用它
